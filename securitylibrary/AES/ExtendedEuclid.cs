@@ -51,7 +51,7 @@ namespace SecurityLibrary.AES
                 if (b3 == 0) return -1;
                 else if (b3 == 1)
                 {
-                    if (b2 < -1) b2 += 26;
+                    if (b2 < 0) b2 += 26;
                     return b2;
                 }
 

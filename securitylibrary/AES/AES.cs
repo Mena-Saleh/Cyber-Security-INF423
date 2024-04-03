@@ -294,25 +294,27 @@ namespace SecurityLibrary.AES
         // Multiplication in GF(2^8)
         public static byte GFMul(byte a, byte b)
         {
-            byte p = 0;
-            byte counter;
-            byte hi_bit_set;
-            for (counter = 0; counter < 8; counter++)
+            byte result = 0; // Holds the result of the GF multiplication
+            byte bitIndex; // Used to iterate through each bit of 'b'
+            byte highBit; // Indicates if the high bit of 'a' is set before shifting
+
+            for (bitIndex = 0; bitIndex < 8; bitIndex++)
             {
                 if ((b & 1) != 0)
                 {
-                    p ^= a;
+                    result ^= a; // If the least significant bit of 'b' is set, XOR 'a' with 'result'
                 }
-                hi_bit_set = (byte)(a & 0x80);
-                a <<= 1;
-                if (hi_bit_set != 0)
+                highBit = (byte)(a & 0x80); // Check if the high bit of 'a' is set
+                a <<= 1; // Left shift 'a' (equivalent to multiplying by x in GF(2^n))
+                if (highBit != 0)
                 {
-                    a ^= 0x1B; /* x^8 + x^4 + x^3 + x + 1 */
+                    a ^= 0x1B; /* If the high bit was set, reduce 'a' modulo the irreducible polynomial x^8 + x^4 + x^3 + x + 1 */
                 }
-                b >>= 1;
+                b >>= 1; // Right shift 'b', moving to the next bit for the next iteration
             }
-            return p;
+            return result;
         }
+
 
         // Calculate the multiplicative inverse in GF(2^8)
         private static byte GFMulInverse(byte b)

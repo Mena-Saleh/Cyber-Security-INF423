@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SecurityLibrary.AES;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -55,11 +56,31 @@ namespace SecurityLibrary
         {
             throw new NotImplementedException();
         }
-        
+
         public List<int> Decrypt(List<int> cipherText, List<int> key)
         {
-            
-            throw new NotImplementedException();
+            int m = Convert.ToInt32(Math.Sqrt(key.Count()));
+            int n = Convert.ToInt32(Math.Ceiling(cipherText.Count() / Convert.ToDouble(m)));
+
+            int[,] keyMatrix = ListToMatrix(key, m, m);
+            int[,] cipherTextMatrix = ListToMatrix(cipherText, m, n, true);
+
+            int[,] inverseKeyMatrix;
+            if (m == 2)
+            {
+                inverseKeyMatrix = InverseMatrix2By2(keyMatrix);
+            }
+            else
+            {
+                inverseKeyMatrix = InverseMatrix3By3(keyMatrix);
+            }
+
+
+            int[,] result = MultiplyMatrices(inverseKeyMatrix, cipherTextMatrix);
+
+
+            return MatrixToList(result);
+
         }
         public string Decrypt(string cipherText, string key)
         {
@@ -74,10 +95,10 @@ namespace SecurityLibrary
             int m = Convert.ToInt32(Math.Sqrt(key.Count()));
             int n = Convert.ToInt32(Math.Ceiling(plainText.Count() / Convert.ToDouble(m)));
 
-            int[,] keyArray = ListToMatrix(key, m, m);
-            int[,] ptArray = ListToMatrix(plainText, m , n, true);
+            int[,] keyMatrix = ListToMatrix(key, m, m);
+            int[,] plainTextMatrix = ListToMatrix(plainText, m , n, true);
 
-            int[,] result = MultiplyMatrices(keyArray, ptArray);
+            int[,] result = MultiplyMatrices(keyMatrix, plainTextMatrix);
 
             return MatrixToList(result);
         }
@@ -215,7 +236,6 @@ namespace SecurityLibrary
             return result;
         }
 
-
         // Performs naive multiplication of two matrices.
         private int[,] MultiplyMatrices(int[,] matrix1, int[,] matrix2)
         {
@@ -237,45 +257,98 @@ namespace SecurityLibrary
             return result;
         }
 
-        // Method to find the modular multiplicative inverse
-        static int ModInverse(int a, int m)
-        {
-            a %= m;
-            for (int x = 1; x < m; x++)
-            {
-                if ((a * x) % m == 1)
-                    return x;
-            }
-            return 1;
-        }
-
-    
-
-
         // Gets the inverse of a 2 by 2 matrix modulo 26
         private int[,] InverseMatrix2By2(int[,] matrix) {
 
             int determinant = matrix[0, 0] * matrix[1, 1] - (matrix[1, 0] * matrix[0, 1]);
-            determinant %= 26;
-            determinant = ModInverse(determinant, 26);
+            if (determinant == 0)
+            {
+                throw new InvalidOperationException("The matrix does not have an inverse because its determinant is 0.");
+            }
 
+            determinant = ((determinant % 26) + 26) % 26; // Ensure positive result in mod 26 space
+            ExtendedEuclid extendedEucled = new ExtendedEuclid();
+            int modInverse = extendedEucled.GetMultiplicativeInverse(determinant, 26);
+            Console.WriteLine(modInverse);
+
+            if (modInverse == -1) {
+                throw new InvalidOperationException("The determinant does not have an inverse mod 26");
+            }
             int[,] inverse = new int[2, 2];
 
-            inverse[0, 0] = (1 / determinant * matrix[1, 1]) %26;
-            inverse[1, 1] = (1 / determinant * matrix[0, 0]) %26;
-            inverse[0, 1] = (1 / determinant * -matrix[0, 1]) % 26;
-            inverse[1, 0] = (1 / determinant * -matrix[1, 0]) % 26;
+            inverse[0, 0] = (modInverse * matrix[1, 1]) %26;
+            inverse[1, 1] = (modInverse * matrix[0, 0]) %26;
+            inverse[0, 1] = (modInverse * -matrix[0, 1]) % 26;
+            inverse[1, 0] = (modInverse * -matrix[1, 0]) % 26;
 
             // Ensure all values are positive
             for (int i = 0; i < 2; i++)
                 for (int j = 0; j < 2; j++)
                     if (inverse[i, j] < 0) inverse[i, j] += 26;
 
+
             return inverse;
 
         }
 
- 
+        // Gets the inverse of a 3 by 3 matrix modulo 26
+        private int[,] InverseMatrix3By3(int[,] matrix)
+        {
+            int determinant = matrix[0, 0] * (matrix[1, 1] * matrix[2, 2] - matrix[2, 1] * matrix[1, 2]) -
+                              matrix[0, 1] * (matrix[1, 0] * matrix[2, 2] - matrix[1, 2] * matrix[2, 0]) +
+                              matrix[0, 2] * (matrix[1, 0] * matrix[2, 1] - matrix[1, 1] * matrix[2, 0]);
+
+            determinant = ((determinant % 26) + 26) % 26; // Ensure positive result in mod 26 space
+
+            ExtendedEuclid extendedEuclid = new ExtendedEuclid();
+            int modInverse = extendedEuclid.GetMultiplicativeInverse(determinant, 26);
+
+            if (modInverse == -1)
+            {
+                throw new InvalidOperationException("The determinant does not have an inverse mod 26");
+            }
+
+            int[,] inverseMatrix = new int[3, 3];
+
+            // Manual computation of cofactors, adjusted for modular arithmetic
+            int[,] cofactors = new int[3, 3]
+            {
+                {
+                    (matrix[1, 1] * matrix[2, 2] - matrix[2, 1] * matrix[1, 2]),
+                    -(matrix[0, 1] * matrix[2, 2] - matrix[2, 1] * matrix[0, 2]),
+                    (matrix[0, 1] * matrix[1, 2] - matrix[1, 1] * matrix[0, 2])
+                },
+
+                {
+                    -(matrix[1, 0] * matrix[2, 2] - matrix[2, 0] * matrix[1, 2]),
+                    (matrix[0, 0] * matrix[2, 2] - matrix[2, 0] * matrix[0, 2]),
+                    -(matrix[0, 0] * matrix[1, 2] - matrix[1, 0] * matrix[0, 2])
+                },
+
+                {
+                    (matrix[1, 0] * matrix[2, 1] - matrix[2, 0] * matrix[1, 1]),
+                    -(matrix[0, 0] * matrix[2, 1] - matrix[2, 0] * matrix[0, 1]),
+                    (matrix[0, 0] * matrix[1, 1] - matrix[1, 0] * matrix[0, 1])
+                }
+             };
+
+            // Apply modInverse and transpose in one step, ensuring all operations are mod 26
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    // Compute each element's modular inverse, adjust for any negative values to ensure positive mod 26 results
+                    inverseMatrix[i, j] = modInverse * cofactors[i, j] % 26;
+                    inverseMatrix[i, j] = (inverseMatrix[i, j] + 26) % 26;
+                }
+            }
+
+            return inverseMatrix;
+        }
+
+
+
+
 
     }
 }
