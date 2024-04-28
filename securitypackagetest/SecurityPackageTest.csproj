@@ -56,6 +56,7 @@
     <Compile Include="AESTest.cs" />
     <Compile Include="ColumnarTest.cs" />
     <Compile Include="DeffieHelmanTest.cs" />
+    <Compile Include="DESTest.cs" />
     <Compile Include="ElGamalTest.cs" />
     <Compile Include="ExtendedEuclidTest.cs" />
     <Compile Include="HillCipherTest.cs" />
